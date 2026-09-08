@@ -395,17 +395,59 @@ ros2 action send_goal /MAV1/precision_land \
 
 ### 看畫面
 
+模擬預設是無頭跑的（快、省 GPU）。想看畫面的話：
+
 <table width="100%">
 <thead><tr>
 <th width="40%" align="left">想看什麼</th>
 <th width="60%" align="left">怎麼開</th>
 </tr></thead>
 <tbody>
-<tr><td align="left">飛行軌跡、降落過程</td><td align="left">啟動 SITL 時<b>不要</b>加 <code>HEADLESS=1</code></td></tr>
+<tr><td align="left">飛行軌跡、降落過程（3D 場景）</td><td align="left">啟動 SITL 時<b>不要</b>加 <code>HEADLESS=1</code></td></tr>
 <tr><td align="left">apriltag 實際看到的畫面</td><td align="left"><code>nav2_then_land.launch.py view:=true</code></td></tr>
-<tr><td align="left">拓樸圖 + 兩顆相機（同一視窗）</td><td align="left"><code>ros2 launch drone_nav2_apriltag view_graph.launch.py</code></td></tr>
+<tr><td align="left">拓樸圖節點/邊 + 無人機位置</td><td align="left">下面的 RViz</td></tr>
 </tbody>
 </table>
+
+#### RViz：看拓樸圖和無人機在圖上跑
+
+另開一個終端（`drone_nav2_apriltag` 提供的，本套件不重造）：
+
+```bash
+ros2 launch drone_nav2_apriltag view_graph.launch.py \
+    px4_namespace:=/MAV1 track_vehicle:=true
+```
+
+同一個視窗會有：**牆的輪廓 + 拓樸圖的節點與邊 + 兩顆相機的畫面 + 無人機當下位置**。
+
+<table width="100%">
+<thead><tr>
+<th width="35%" align="left">參數</th>
+<th width="65%" align="left">說明</th>
+</tr></thead>
+<tbody>
+<tr><td align="left"><code>px4_namespace:=/MAV1</code></td><td align="left">要跟 SITL 的 namespace 一致，不填就看不到無人機</td></tr>
+<tr><td align="left"><code>track_vehicle:=true</code></td><td align="left">畫出無人機當下位置</td></tr>
+<tr><td align="left"><code>rviz:=false</code></td><td align="left">只發 MarkerArray 不開視窗</td></tr>
+</tbody>
+</table>
+
+完整的四個終端：
+
+```bash
+# A  XRCE Agent
+MicroXRCEAgent udp4 -p 8888
+
+# B  SITL（拿掉 HEADLESS=1 就有 Gazebo 視窗）
+cd ~/ros2_ws && DRONES=1 ./src/drone_nav2_apriltag/scripts/start_arena_sitl.sh
+
+# C  RViz：拓樸圖 + 無人機
+ros2 launch drone_nav2_apriltag view_graph.launch.py \
+    px4_namespace:=/MAV1 track_vehicle:=true
+
+# D  導航 + 精準降落
+ros2 launch drone_apriltag_landing nav2_then_land.launch.py
+```
 
 > 全部開起來會吃不少 GPU。GPU 被吃掉會拖慢 Gazebo 的物理步進，
 > lockstep 下 PX4 就收不到 IMU。出現 `Accel TIMEOUT` 就關掉幾個視窗。
