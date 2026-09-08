@@ -1,0 +1,46 @@
+# 視覺精準降落。
+#
+# 呼叫前呼叫方「必須」停止發布 trajectory_setpoint 與 offboard_control_mode，
+# 本節點在 goal 被接受後接管控制權，直到回報 result 才交還。
+# 兩邊同時發 = PX4 收到交錯的矛盾指令 = 飛機抽搐。
+
+# ============ Goal ============
+# 三個欄位都有預設值，呼叫方可以整包留空直接用參數檔的設定。
+
+# 要降落在哪個 tag。-1 代表沿用參數檔的 tag_id。
+int32 tag_id -1
+
+# 開始對準時要維持的高度（公尺，正值代表離地高度）。
+# 0 代表沿用當下高度，不做額外升降。
+float32 approach_altitude 0.0
+
+# 要不要把機頭轉到和 tag 對齊。編隊不在意航向時可以關掉省時間。
+bool align_yaw true
+---
+# ============ Result ============
+uint8 CODE_SUCCESS   = 0
+uint8 CODE_TIMEOUT   = 1
+uint8 CODE_CANCELLED = 2
+uint8 CODE_NO_TAG    = 3
+uint8 CODE_BAD_POSE  = 4   # PX4 的位置估計失效（xy_valid / z_valid 掉了）
+uint8 CODE_REJECTED  = 5   # 偵測到別人也在發 setpoint，拒絕接手
+
+bool success
+uint8 result_code
+
+# 交接給 PX4 那一刻的殘餘誤差，給上層記錄用（判斷這次降得準不準）
+float32 final_x_error
+float32 final_y_error
+float32 final_yaw_error
+---
+# ============ Feedback ============
+uint8 STATE_SEARCHING  = 0
+uint8 STATE_ALIGNING   = 1
+uint8 STATE_DESCENDING = 2
+uint8 STATE_HANDOFF    = 3
+
+uint8 state
+float32 altitude
+float32 xy_error
+float32 yaw_error
+bool tag_visible

@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>drone_apriltag_landing</name>
+  <version>0.1.0</version>
+  <description>
+    以 AprilTag 做視覺精準降落的 PX4 套件。對準、下降、交接給 PX4 落地，
+    不綁定任何場地或機體 —— 相機 topic、tag ID、tag 尺寸全都是參數。
+  </description>
+
+  <maintainer email="oliver.920906@gmail.com">oliver</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- 產生 action 定義用。這一組是 rosidl 的標準三件套，缺一不可 -->
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <depend>rclcpp</depend>
+  <!-- rclcpp_action: 降落要 30 秒以上，必須用 action 才有進度回報和取消 -->
+  <depend>rclcpp_action</depend>
+  <!-- px4_msgs: 必須和 PX4 韌體版本對齊（目前 v1.17，訊息帶 _v1 後綴那套） -->
+  <depend>px4_msgs</depend>
+  <!-- apriltag_msgs: 只為了讀 hamming / decision_margin 做品質把關。
+       位姿不在這裡面，位姿要從 /tf 拿 —— 兩邊都要訂才夠用。 -->
+  <depend>apriltag_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <!-- tf2 系列: 座標轉換一律交給它，不手刻旋轉矩陣（手刻符號幾乎一定會錯） -->
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+
+  <!-- apriltag_ros 只在執行期由 launch 拉起來，編譯不需要它 -->
+  <exec_depend>apriltag_ros</exec_depend>
+  <exec_depend>ros2launch</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

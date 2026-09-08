@@ -1,0 +1,29 @@
+# 給現成的 apriltag_ros / apriltag_node 用的參數。
+#
+# 為什麼不直接用 /opt/ros/humble/share/apriltag_ros/cfg/tags_36h11.yaml：
+# 那是 apt 裝的系統檔，改它要 sudo、下次 apt upgrade 會被蓋掉，而且會影響
+# 這台機器上所有專案。自己帶一份才是可攜的做法。
+/**:
+  ros__parameters:
+    image_transport: raw
+    family: 36h11
+    # ⚠️ 必須和 config/landing.yaml 的 tag_size 一致（黑框外緣邊長，公尺）。
+    #    兩邊不同步的話：apriltag 用這個算位姿，我們的節點用那個判高度，會打架。
+    size: 0.8
+    # 一個 bit 都不准錯。36h11 保證任兩碼至少差 11 bit，設 0 就不可能誤判成別的 ID
+    # （見 /opt/ros/humble/include/apriltag/apriltag.h:78-79）。
+    max_hamming: 0
+    # 相機影像用 sensor_data（best effort），跟 Gazebo 橋出來的 QoS 對得上
+    qos_profile: sensor_data
+
+    detector:
+      threads: 2
+      # 先降解析度再找四邊形，快很多。1280x960 的畫面設 2.0 綽綽有餘。
+      decimate: 2.0
+      blur: 0.0
+      refine: true
+      sharpening: 0.25
+      debug: false
+
+    # pnp 比 homography 準，代價是慢一點。降落要的是準。
+    pose_estimation_method: "pnp"
