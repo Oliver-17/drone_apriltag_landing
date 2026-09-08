@@ -6,12 +6,20 @@ ROS 2 Humble + PX4 的**精準降落套件**，附三層可獨立執行的驗證
 **不綁定任何場地或機體** —— 相機 topic、tag ID、尺寸、安裝角度、控制增益
 全部是參數，換環境只改 `config/landing.yaml`。
 
-| 驗證 | 內容                             | 耗時   | 結果                 |
-|------|----------------------------------|--------|----------------------|
-| T1   | 參數一致性、貼圖解碼、可視高度   | 0.5 秒 | ✅ 全過              |
-| T2   | 座標系與位姿轉換（7 個已知位置） | 90 秒  | ✅ 誤差 ≤ 0.4 cm     |
-| T3   | 完整降落飛行                     | 3 分鐘 | ✅ 落點 1.8 / 3.8 cm |
-| 整合 | 接上拓樸地圖，端到端             | 5 分鐘 | ✅ 落點 9.8 cm       |
+<table width="100%">
+<thead><tr>
+<th width="10%" align="center">驗證</th>
+<th width="45%" align="left">內容</th>
+<th width="15%" align="center">耗時</th>
+<th width="30%" align="left">結果</th>
+</tr></thead>
+<tbody>
+<tr><td align="center"><b>T1</b></td><td align="left">參數一致性、貼圖解碼、可視高度</td><td align="center">0.5 秒</td><td align="left">✅ 全過</td></tr>
+<tr><td align="center"><b>T2</b></td><td align="left">座標系與位姿轉換（7 個已知位置）</td><td align="center">90 秒</td><td align="left">✅ 誤差 ≤ 0.4 cm</td></tr>
+<tr><td align="center"><b>T3</b></td><td align="left">完整降落飛行</td><td align="center">3 分鐘</td><td align="left">✅ 落點 1.8 / 3.8 cm</td></tr>
+<tr><td align="center"><b>整合</b></td><td align="left">接上拓樸地圖，端到端</td><td align="center">5 分鐘</td><td align="left">✅ 落點 9.8 cm</td></tr>
+</tbody>
+</table>
 
 > 這個 repo **本身就是一個 ROS 2 package**，不是 workspace。
 > clone 進你既有 workspace 的 `src/` 底下即可。
@@ -20,19 +28,25 @@ ROS 2 Humble + PX4 的**精準降落套件**，附三層可獨立執行的驗證
 
 ## 快速導覽
 
-| 你想知道                     | 看哪一節                                  |
-|------------------------------|-------------------------------------------|
-| **接進我的系統前必讀**       | [0 交接協議](#0-交接協議)                 |
-| 這包在做什麼、跟誰的界線在哪 | [1 這包在做什麼](#1-這包在做什麼)         |
-| AprilTag 怎麼算出位置和角度  | [2 原理](#2-原理)                         |
-| 何時下降、何時交給 PX4       | [3 狀態機](#3-狀態機)                     |
-| 怎麼證明這包是對的           | [4 三層驗證](#4-三層驗證)                 |
-| **我要在自己電腦上跑一次**   | [5 在自己電腦上驗證](#5-在自己電腦上驗證) |
-| **接上拓樸地圖，飛完整趟**   | [6 接上拓樸地圖](#6-接上拓樸地圖)         |
-| 飛行途中要看到相機畫面       | [看畫面](#看畫面)                         |
-| 有哪些參數、換相機要改什麼   | [7 參數](#7-參數)                         |
-| 檔案在哪                     | [8 檔案結構](#8-檔案結構)                 |
-| 有什麼坑                     | [9 踩過的雷](#9-踩過的雷)                 |
+<table width="100%">
+<thead><tr>
+<th width="50%" align="left">你想知道</th>
+<th width="50%" align="left">看哪一節</th>
+</tr></thead>
+<tbody>
+<tr><td align="left"><b>接進我的系統前必讀</b></td><td align="left"><a href="#0-交接協議">0 交接協議</a></td></tr>
+<tr><td align="left">這包在做什麼、跟誰的界線在哪</td><td align="left"><a href="#1-這包在做什麼">1 這包在做什麼</a></td></tr>
+<tr><td align="left">AprilTag 怎麼算出位置和角度</td><td align="left"><a href="#2-原理">2 原理</a></td></tr>
+<tr><td align="left">何時下降、何時交給 PX4</td><td align="left"><a href="#3-狀態機">3 狀態機</a></td></tr>
+<tr><td align="left">怎麼證明這包是對的</td><td align="left"><a href="#4-三層驗證">4 三層驗證</a></td></tr>
+<tr><td align="left"><b>我要在自己電腦上跑一次</b></td><td align="left"><a href="#5-在自己電腦上驗證">5 在自己電腦上驗證</a></td></tr>
+<tr><td align="left"><b>接上拓樸地圖，飛完整趟</b></td><td align="left"><a href="#6-接上拓樸地圖">6 接上拓樸地圖</a></td></tr>
+<tr><td align="left">飛行途中要看到相機畫面</td><td align="left"><a href="#看畫面">看畫面</a></td></tr>
+<tr><td align="left">有哪些參數、換相機要改什麼</td><td align="left"><a href="#7-參數">7 參數</a></td></tr>
+<tr><td align="left">檔案在哪</td><td align="left"><a href="#8-檔案結構">8 檔案結構</a></td></tr>
+<tr><td align="left">有什麼坑</td><td align="left"><a href="#9-踩過的雷">9 踩過的雷</a></td></tr>
+</tbody>
+</table>
 
 ---
 
@@ -60,12 +74,18 @@ ROS 2 Humble + PX4 的**精準降落套件**，附三層可獨立執行的驗證
 
 **只負責最後那幾十秒 —— 從看到 tag 到停在 tag 上。**
 
-| ✅ 做                              | ❌ 不做                                          |
-|------------------------------------|--------------------------------------------------|
-| 認出地上的 tag，算出相對位置與航向 | 飛到 tag 附近（Nav2 / 編隊的事）                 |
-| 對準 → 下降 → 交接給 PX4 落地      | 定義場地、提供 tag 貼圖                          |
-| 找不到就等，逾時回報失敗           | 起飛、跑航線                                     |
-|                                    | 開相機（模擬 `ros_gz_image`／實機 `camera_ros`） |
+<table width="100%">
+<thead><tr>
+<th width="50%" align="left">✅ 做</th>
+<th width="50%" align="left">❌ 不做</th>
+</tr></thead>
+<tbody>
+<tr><td align="left">認出地上的 tag，算出相對位置與航向</td><td align="left">飛到 tag 附近（Nav2 / 編隊的事）</td></tr>
+<tr><td align="left">對準 → 下降 → 交接給 PX4 落地</td><td align="left">定義場地、提供 tag 貼圖</td></tr>
+<tr><td align="left">找不到就等，逾時回報失敗</td><td align="left">起飛、跑航線</td></tr>
+<tr><td align="left">—</td><td align="left">開相機（模擬 <code>ros_gz_image</code>／實機 <code>camera_ros</code>）</td></tr>
+</tbody>
+</table>
 
 相依只有 `rclcpp` / `rclcpp_action` / `px4_msgs` / `apriltag_msgs` / `tf2`。
 **不相依 `drone_nav2_apriltag`** —— 別人拿去不用連帶搬走整個場地。
@@ -79,14 +99,20 @@ topic    <ns>/landing_error      geometry_msgs/Vector3Stamped （北誤差, 東�
 
 ### 環境版本
 
-| 項目                   | 版本            |
-|------------------------|-----------------|
-| Ubuntu                 | 22.04           |
-| ROS 2                  | Humble          |
-| PX4-Autopilot（SITL）  | v1.17.0         |
-| Gazebo                 | Harmonic 8.15.0 |
-| `apriltag_ros`         | 3.4.0           |
-| `apriltag`（C 演算法） | 3.4.5           |
+<table width="100%">
+<thead><tr>
+<th width="50%" align="left">項目</th>
+<th width="50%" align="left">版本</th>
+</tr></thead>
+<tbody>
+<tr><td align="left">Ubuntu</td><td align="left">22.04</td></tr>
+<tr><td align="left">ROS 2</td><td align="left">Humble</td></tr>
+<tr><td align="left">PX4-Autopilot（SITL）</td><td align="left">v1.17.0</td></tr>
+<tr><td align="left">Gazebo</td><td align="left">Harmonic 8.15.0</td></tr>
+<tr><td align="left"><code>apriltag_ros</code></td><td align="left">3.4.0</td></tr>
+<tr><td align="left"><code>apriltag</code>（C 演算法）</td><td align="left">3.4.5</td></tr>
+</tbody>
+</table>
 
 ---
 
@@ -115,11 +141,17 @@ topic    <ns>/landing_error      geometry_msgs/Vector3Stamped （北誤差, 東�
 
 有這三樣就能反推唯一的 6 自由度位姿：
 
-| 已知                     | 從哪來              |
-|--------------------------|---------------------|
-| 四個角在畫面上的像素座標 | 偵測結果 `corners`  |
-| tag 在現實中邊長幾公尺   | 參數 `tag_size`     |
-| 相機焦距與光心           | `camera_info` topic |
+<table width="100%">
+<thead><tr>
+<th width="50%" align="left">已知</th>
+<th width="50%" align="left">從哪來</th>
+</tr></thead>
+<tbody>
+<tr><td align="left">四個角在畫面上的像素座標</td><td align="left">偵測結果 <code>corners</code></td></tr>
+<tr><td align="left">tag 在現實中邊長幾公尺</td><td align="left">參數 <code>tag_size</code></td></tr>
+<tr><td align="left">相機焦距與光心</td><td align="left"><code>camera_info</code> topic</td></tr>
+</tbody>
+</table>
 
 直覺：正對著看四角是矩形，斜著看變梯形。
 **形變本身就是資訊** —— 越扁 = 越斜，越小 = 越遠。
@@ -187,19 +219,34 @@ IDLE ──goal──> SEARCHING ──連續 5 幀鎖定──> ALIGNING
 
 ## 4 三層驗證
 
-|        | 內容                           | 要 Gazebo | 要飛 | 耗時   |
-|--------|--------------------------------|-----------|------|--------|
-| **T1** | 參數一致性、貼圖解碼、可視高度 | ❌        | ❌   | 0.5 秒 |
-| **T2** | **座標系與位姿轉換**           | ✅        | ❌   | 90 秒  |
-| **T3** | 完整降落飛行                   | ✅        | ✅   | 3 分鐘 |
+<table width="100%">
+<thead><tr>
+<th width="10%" align="center"></th>
+<th width="46%" align="left">內容</th>
+<th width="14%" align="center">要 Gazebo</th>
+<th width="12%" align="center">要飛</th>
+<th width="18%" align="center">耗時</th>
+</tr></thead>
+<tbody>
+<tr><td align="center"><b>T1</b></td><td align="left">參數一致性、貼圖解碼、可視高度</td><td align="center">❌</td><td align="center">❌</td><td align="center">0.5 秒</td></tr>
+<tr><td align="center"><b>T2</b></td><td align="left"><b>座標系與位姿轉換</b></td><td align="center">✅</td><td align="center">❌</td><td align="center">90 秒</td></tr>
+<tr><td align="center"><b>T3</b></td><td align="left">完整降落飛行</td><td align="center">✅</td><td align="center">✅</td><td align="center">3 分鐘</td></tr>
+</tbody>
+</table>
 
 分層的意義在於**每一層抓到的東西不一樣**：
 
-|    | 實際抓到過的問題                                              |
-|----|---------------------------------------------------------------|
-| T1 | `tag_size` 應該是 0.8 不是 1.0（黑框只佔 14 格裡的 8 格）     |
-| T2 | 位置鏈路正確；**但它看不到 ENU/NED 的符號差**，因為不啟動 PX4 |
-| T3 | setpoint 灌爆 PX4、yaw 符號翻轉、HANDOFF 時模式打架           |
+<table width="100%">
+<thead><tr>
+<th width="10%" align="center"></th>
+<th width="90%" align="left">實際抓到過的問題</th>
+</tr></thead>
+<tbody>
+<tr><td align="center"><b>T1</b></td><td align="left"><code>tag_size</code> 應該是 0.8 不是 1.0（黑框只佔 14 格裡的 8 格）</td></tr>
+<tr><td align="center"><b>T2</b></td><td align="left">位置鏈路正確；<b>但它看不到 ENU/NED 的符號差</b>，因為不啟動 PX4</td></tr>
+<tr><td align="center"><b>T3</b></td><td align="left">setpoint 灌爆 PX4、yaw 符號翻轉、HANDOFF 時模式打架</td></tr>
+</tbody>
+</table>
 
 > **T2 過了不代表 T3 會過。** 上面那三個坑全部是 T3 才現形的。
 
@@ -223,10 +270,16 @@ IDLE ──goal──> SEARCHING ──連續 5 幀鎖定──> ALIGNING
 
 流程：起飛 → 故意飛開一段 → 交接 → 看它把飛機帶回原點多準。
 
-| 起始偏移 | 落點誤差   |
-|----------|------------|
-| 1.84 m   | **1.8 cm** |
-| 2.21 m   | **3.8 cm** |
+<table width="100%">
+<thead><tr>
+<th width="50%" align="center">起始偏移</th>
+<th width="50%" align="center">落點誤差</th>
+</tr></thead>
+<tbody>
+<tr><td align="center">1.84 m</td><td align="center"><b>1.8 cm</b></td></tr>
+<tr><td align="center">2.21 m</td><td align="center"><b>3.8 cm</b></td></tr>
+</tbody>
+</table>
 
 ---
 
@@ -342,11 +395,17 @@ ros2 action send_goal /MAV1/precision_land \
 
 ### 看畫面
 
-| 想看什麼                      | 怎麼開                                                 |
-|-------------------------------|--------------------------------------------------------|
-| 飛行軌跡、降落過程            | 啟動 SITL 時**不要**加 `HEADLESS=1`                    |
-| apriltag 實際看到的畫面       | `nav2_then_land.launch.py view:=true`                  |
-| 拓樸圖 + 兩顆相機（同一視窗） | `ros2 launch drone_nav2_apriltag view_graph.launch.py` |
+<table width="100%">
+<thead><tr>
+<th width="40%" align="left">想看什麼</th>
+<th width="60%" align="left">怎麼開</th>
+</tr></thead>
+<tbody>
+<tr><td align="left">飛行軌跡、降落過程</td><td align="left">啟動 SITL 時<b>不要</b>加 <code>HEADLESS=1</code></td></tr>
+<tr><td align="left">apriltag 實際看到的畫面</td><td align="left"><code>nav2_then_land.launch.py view:=true</code></td></tr>
+<tr><td align="left">拓樸圖 + 兩顆相機（同一視窗）</td><td align="left"><code>ros2 launch drone_nav2_apriltag view_graph.launch.py</code></td></tr>
+</tbody>
+</table>
 
 > 全部開起來會吃不少 GPU。GPU 被吃掉會拖慢 Gazebo 的物理步進，
 > lockstep 下 PX4 就收不到 IMU。出現 `Accel TIMEOUT` 就關掉幾個視窗。
@@ -358,27 +417,34 @@ ros2 action send_goal /MAV1/precision_land \
 全部在 `config/landing.yaml`，**換環境只改這裡**。
 ⚠️ 標記的三個填錯不會報錯，只會安靜地失敗。
 
-| 參數                    | 預設               | 說明                                   |
-|-------------------------|--------------------|----------------------------------------|
-| `namespace`             | `MAV1`             | PX4 namespace，多機時改這個            |
-| `target_system`         | `1`                | MAVLink target_system，等於 instance+1 |
-| `camera_frame`          | `camera_down_link` | 要和 `camera_info` 的 `frame_id` 一致  |
-| ⚠️ `tag_id`             | `0`                | 填錯會**永遠偵測不到**且不報錯         |
-| ⚠️ `tag_size`           | `0.8`              | **黑框外緣**的邊長，不是整張貼圖       |
-| `camera_offset`         | `[0, 0, 0.10]`     | 相機在機體上的位置（x 前／y 左／z 上） |
-| `camera_rpy`            | `[0, 1.5707, 0]`   | 安裝角度（弧度），抄自機體 `model.sdf` |
-| `min_decision_margin`   | `30.0`             | 黑白對比門檻，濾掉逆光那幾幀           |
-| `lock_frames`           | `5`                | 連續幾幀才算鎖定                       |
-| `lost_frames`           | `15`               | 連續幾幀才算丟失                       |
-| `xy_tolerance`          | `0.15`             | 水平誤差小於這個才准開始下降（m）      |
-| `yaw_tolerance_deg`     | `5.0`              | 航向誤差門檻（度）                     |
-| `kp_xy` `kp_z` `kp_yaw` | `0.5` `0.6` `0.8`  | 控制增益，不要設 1.0（會過衝震盪）     |
-| `max_speed_xy`          | `0.8`              | 水平速度上限（m/s）                    |
-| `descend_speed`         | `0.3`              | 下降速度（m/s）                        |
-| ⚠️ `handoff_altitude`   | `1.0`              | 交接給 PX4 的高度，換相機要重算        |
-| `search_timeout_s`      | `30.0`             | 找不到 tag 多久放棄                    |
-| `total_timeout_s`       | `120.0`            | 整體逾時                               |
-| `control_mode`          | `controller`       | 或 `advisor`（只回報誤差，不碰飛機）   |
+<table width="100%">
+<thead><tr>
+<th width="28%" align="left">參數</th>
+<th width="22%" align="left">預設</th>
+<th width="50%" align="left">說明</th>
+</tr></thead>
+<tbody>
+<tr><td align="left"><code>namespace</code></td><td align="left"><code>MAV1</code></td><td align="left">PX4 namespace，多機時改這個</td></tr>
+<tr><td align="left"><code>target_system</code></td><td align="left"><code>1</code></td><td align="left">MAVLink target_system，等於 instance+1</td></tr>
+<tr><td align="left"><code>camera_frame</code></td><td align="left"><code>camera_down_link</code></td><td align="left">要和 <code>camera_info</code> 的 <code>frame_id</code> 一致</td></tr>
+<tr><td align="left">⚠️ <code>tag_id</code></td><td align="left"><code>0</code></td><td align="left">填錯會<b>永遠偵測不到</b>且不報錯</td></tr>
+<tr><td align="left">⚠️ <code>tag_size</code></td><td align="left"><code>0.8</code></td><td align="left"><b>黑框外緣</b>的邊長，不是整張貼圖</td></tr>
+<tr><td align="left"><code>camera_offset</code></td><td align="left"><code>[0, 0, 0.10]</code></td><td align="left">相機在機體上的位置（x 前／y 左／z 上）</td></tr>
+<tr><td align="left"><code>camera_rpy</code></td><td align="left"><code>[0, 1.5707, 0]</code></td><td align="left">安裝角度（弧度），抄自機體 <code>model.sdf</code></td></tr>
+<tr><td align="left"><code>min_decision_margin</code></td><td align="left"><code>30.0</code></td><td align="left">黑白對比門檻，濾掉逆光那幾幀</td></tr>
+<tr><td align="left"><code>lock_frames</code></td><td align="left"><code>5</code></td><td align="left">連續幾幀才算鎖定</td></tr>
+<tr><td align="left"><code>lost_frames</code></td><td align="left"><code>15</code></td><td align="left">連續幾幀才算丟失</td></tr>
+<tr><td align="left"><code>xy_tolerance</code></td><td align="left"><code>0.15</code></td><td align="left">水平誤差小於這個才准開始下降（m）</td></tr>
+<tr><td align="left"><code>yaw_tolerance_deg</code></td><td align="left"><code>5.0</code></td><td align="left">航向誤差門檻（度）</td></tr>
+<tr><td align="left"><code>kp_xy</code> <code>kp_z</code> <code>kp_yaw</code></td><td align="left"><code>0.5</code> <code>0.6</code> <code>0.8</code></td><td align="left">控制增益，不要設 1.0（會過衝震盪）</td></tr>
+<tr><td align="left"><code>max_speed_xy</code></td><td align="left"><code>0.8</code></td><td align="left">水平速度上限（m/s）</td></tr>
+<tr><td align="left"><code>descend_speed</code></td><td align="left"><code>0.3</code></td><td align="left">下降速度（m/s）</td></tr>
+<tr><td align="left">⚠️ <code>handoff_altitude</code></td><td align="left"><code>1.0</code></td><td align="left">交接給 PX4 的高度，換相機要重算</td></tr>
+<tr><td align="left"><code>search_timeout_s</code></td><td align="left"><code>30.0</code></td><td align="left">找不到 tag 多久放棄</td></tr>
+<tr><td align="left"><code>total_timeout_s</code></td><td align="left"><code>120.0</code></td><td align="left">整體逾時</td></tr>
+<tr><td align="left"><code>control_mode</code></td><td align="left"><code>controller</code></td><td align="left">或 <code>advisor</code>（只回報誤差，不碰飛機）</td></tr>
+</tbody>
+</table>
 
 `config/tag_36h11.yaml` 是給現成的 `apriltag_node` 用的。
 **自己帶一份而不是改 `/opt/ros/humble/...` 的系統檔** —— 改系統檔要 sudo、
