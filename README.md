@@ -34,6 +34,7 @@ ROS 2 Humble + PX4 的**精準降落套件**，附三層可獨立執行的驗證
 <th width="50%" align="left">看哪一節</th>
 </tr></thead>
 <tbody>
+<tr><td align="left"><b>我只是忘記指令怎麼打</b></td><td align="left"><a href="#指令速查">指令速查</a></td></tr>
 <tr><td align="left"><b>接進我的系統前必讀</b></td><td align="left"><a href="#0-交接協議">0 交接協議</a></td></tr>
 <tr><td align="left">這包在做什麼、跟誰的界線在哪</td><td align="left"><a href="#1-這包在做什麼">1 這包在做什麼</a></td></tr>
 <tr><td align="left">AprilTag 怎麼算出位置和角度</td><td align="left"><a href="#2-原理">2 原理</a></td></tr>
@@ -47,6 +48,54 @@ ROS 2 Humble + PX4 的**精準降落套件**，附三層可獨立執行的驗證
 <tr><td align="left">有什麼坑</td><td align="left"><a href="#9-踩過的雷">9 踩過的雷</a></td></tr>
 </tbody>
 </table>
+
+---
+
+## 指令速查
+
+> 忘記指令的時候看這裡，每一塊都可以直接複製。原理請往後看。
+> 跨套件的完整速查（SITL、Nav2、停止清場）在
+> [`drone_nav2_apriltag` 的 0 指令速查](https://github.com/Oliver-17/drone_nav2_apriltag#0-指令速查)。
+
+<table width="100%">
+<thead><tr>
+<th width="42%" align="left">我想做什麼</th>
+<th width="58%" align="left">指令</th>
+</tr></thead>
+<tbody>
+<tr>
+<td align="left">離線驗證解碼與可見距離<br><sub>0.5 秒，什麼都不用開</sub></td>
+<td align="left"><code>python3 ~/ros2_ws/src/drone_apriltag_landing/test/t1_offline_decode.py</code></td>
+</tr>
+<tr>
+<td align="left">驗證位姿算得對不對<br><sub>約 90 秒，自己開關 Gazebo，不用飛</sub></td>
+<td align="left"><code>python3 ~/ros2_ws/src/drone_apriltag_landing/test/t2_pose_check.py</code></td>
+</tr>
+<tr>
+<td align="left">驗證降落精度<br><sub>約 3 分鐘，<b>會真的飛</b></sub></td>
+<td align="left"><code>python3 ~/ros2_ws/src/drone_apriltag_landing/test/t3_landing_flight.py</code></td>
+</tr>
+<tr>
+<td align="left"><b>完整一趟</b>：導航到終點 → 自動交棒降落</td>
+<td align="left"><code>ros2 launch drone_apriltag_landing nav2_then_land.launch.py namespace:=MAV1 view:=true</code></td>
+</tr>
+<tr>
+<td align="left">只啟動降落節點<br><sub>飛機已經在 tag 附近</sub></td>
+<td align="left"><code>ros2 launch drone_apriltag_landing precision_land.launch.py namespace:=MAV1 camera:=camera_down</code></td>
+</tr>
+<tr>
+<td align="left">手動送一次降落目標</td>
+<td align="left"><code>ros2 action send_goal /MAV1/precision_land drone_apriltag_landing/action/PrecisionLand "{tag_id: -1, approach_altitude: 0.0, align_yaw: true}" --feedback</code></td>
+</tr>
+<tr>
+<td align="left">停止 / 清場</td>
+<td align="left"><code>pkill -x px4 ; pkill -f "gz sim"</code></td>
+</tr>
+</tbody>
+</table>
+
+三支測試都支援 `--gui` 開 Gazebo 視窗看過程（預設無視窗比較快），
+跑之前請確認**沒有別的 SITL 在跑**。
 
 ---
 
@@ -340,6 +389,19 @@ python3 src/drone_apriltag_landing/test/t3_landing_flight.py --offset -2.0 1.0
 ## 6 接上拓樸地圖
 
 沿 `drone_nav2_apriltag` 的拓樸圖飛到降落點，然後交給精準降落。
+
+> **有兩條路，先看清楚差別。**
+>
+> | | 這一節的 `nav2_then_land.launch.py` | `drone_control` 的 `mission.launch.py` |
+> |---|---|---|
+> | 中段飛行 | `fly_nodes` 直接發 setpoint 走**直線**，不避障 | **Nav2**，會繞開光達看到的障礙物 |
+> | 怎麼知道「飛到了」 | `OnProcessExit`（子程序結束了≠到目標了） | 等 `NavigateToPose` 的 result |
+> | 要開幾個終端 | 3 | 7（Nav2 整套） |
+> | 適合 | 只想看降落、不想架 Nav2 | **正式流程** |
+>
+> 想跑完整流程請用 `mission.launch.py`（見 `drone_control` 的 README）。
+> 這一節留著，因為它是「不需要 Nav2 也能把降落接起來」的最小路徑 ——
+> 給只想驗降落這一段的人用。
 
 ```bash
 # 終端 A

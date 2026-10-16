@@ -46,6 +46,11 @@ using Mat3 = std::array<Vec3, 3>;
 namespace
 {
 
+// 控制迴圈週期（秒）。20 Hz —— PX4 只要求 offboard setpoint > 2 Hz，這有十倍餘裕。
+// 取成常數是因為航向斜坡要用它換算「每個週期最多轉多少」：
+// 以前 timer 寫 50ms、斜坡寫 0.05，改一邊忘一邊的話斜坡速率會靜默地錯掉。
+constexpr double kLoopDt = 0.05;
+
 // 相機「光學座標系」→「link 座標系」的固定旋轉。
 //   光學（ROS 慣例）  ：x 右、y 下、z 沿光軸向前
 //   link（Gazebo 慣例）：x 沿光軸向前、y 左、z 上
@@ -184,7 +189,9 @@ public:
 
     // 20 Hz。PX4 要求 offboard setpoint 串流 > 2 Hz，20 Hz 留了十倍餘裕，
     // 又不會像 100 Hz 那樣把 DDS 塞滿（多機時三台共用同一條網路）。
-    timer_ = create_wall_timer(50ms, std::bind(&PrecisionLandNode::loop, this));
+    timer_ = create_wall_timer(
+      std::chrono::duration<double>(kLoopDt),
+      std::bind(&PrecisionLandNode::loop, this));
 
     logStartup();
   }
@@ -631,12 +638,37 @@ private:
     sp.acceleration = {nan, nan, nan};
 
     if (align_yaw_ && tagFresh()) {
-      // 用絕對角度而不是角速度：角速度會累積誤差，絕對角度每一幀都是重新算的。
-      // 但一次只准轉一小步，否則大角度會瞬間甩頭。
-      const double step = clampAbs(kp_yaw_ * yaw_error_, max_yawspeed_ * 0.05);
-      sp.yaw = static_cast<float>(wrapPi(local_position_.heading + step));
+      // 用絕對角度而不是角速度：PX4 這一層對 yaw 沒有變化率限制
+      //（PositionControl.cpp:117 直接把 _yaw_sp 當姿態目標用），
+      // 所以一次轉到底會瞬間甩頭 —— 必須自己做斜坡。
+      //
+      // ⚠️ 斜坡一定要從「上一次自己發出去的設定點」往前推，
+      //    不能從「量到的航向」往前推。
+      //    從量到的航向推的話，設定點永遠只在機頭前方 max_yawspeed*dt
+      //    （= 1.43°）的位置；飛機追上來之後下一幀又只前進 1.43°，
+      //    等於整條斜坡被飛機自己的追趕速度綁死。
+      //    實測（T3 --yaw 45）：設定 0.5 rad/s = 28.6 °/s，
+      //    實際只轉 3.46 °/s，慢 8 倍，44° 要花 11.3 秒。
+      //    改成自己積分之後，設定點是真的以 max_yawspeed 在走。
+      //    這和 drone_control 的 cmd_vel_to_px4_node 用 yaw_setpoint_
+      //    的理由完全一樣。
+      if (!yaw_sp_valid_) {
+        // 第一幀從現況接上，否則會從上次降落殘留的角度開始，瞬間甩頭。
+        yaw_setpoint_ = local_position_.heading;
+        yaw_sp_valid_ = true;
+      }
+      // yaw_error_ 是相對量（「機頭還要轉多少」），加上現在的航向才是目標。
+      const double target = wrapPi(local_position_.heading + yaw_error_);
+      // 剩餘量從設定點算，而不是從航向算。kp_yaw_ 讓它在接近目標時減速，
+      // 避免斜坡衝過頭再回來。
+      const double remain = wrapPi(target - yaw_setpoint_);
+      const double step = clampAbs(kp_yaw_ * remain, max_yawspeed_ * kLoopDt);
+      yaw_setpoint_ = wrapPi(yaw_setpoint_ + step);
+      sp.yaw = static_cast<float>(yaw_setpoint_);
     } else {
       sp.yaw = nan;
+      // 下次要對準時重新從現況接上，不要沿用舊的設定點。
+      yaw_sp_valid_ = false;
     }
     sp.yawspeed = nan;
     sp.timestamp = nowMicros();
@@ -739,6 +771,7 @@ private:
     state_ = State::IDLE;
     land_cmd_sent_ = false;
     tag_locked_ = false;
+    yaw_sp_valid_ = false;   // 下一次降落的航向斜坡要重新從現況接上
     goal_handle_.reset();
   }
 
@@ -757,6 +790,9 @@ private:
   Vec3 camera_offset_{}, camera_rpy_{};
   Mat3 r_optical_to_body_{};
   bool advisor_{false}, align_yaw_{true};
+  // 自己積分的絕對航向設定點（見 publishVelocity 的長註解）
+  double yaw_setpoint_{0.0};
+  bool yaw_sp_valid_{false};
 
   State state_{State::IDLE};
   Vec3 tag_offset_ned_{};

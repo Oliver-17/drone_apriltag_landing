@@ -197,6 +197,11 @@ def build_env(arena_root, px4_dir, headless):
 # =============================================================================
 
 class Ferry:
+    # 擺渡結束、交接給 precision_land 那一刻的機頭方向（弧度，NED heading）。
+    # 預設 0 = 朝北。改成非 0 就能重現「Nav2 斜向進場、機頭歪著到達」——
+    # DWB 的 critics 裡沒有 RotateToGoal，所以實際任務裡到達時的朝向是任意的。
+    handover_yaw = 0.0
+
     """把飛機解鎖、起飛、飛到一個刻意偏開 tag 的位置，然後交出控制權。
 
     這一段刻意寫成「另一個會發 setpoint 的節點」，因為它要順便驗交接協議：
@@ -268,7 +273,11 @@ class Ferry:
 
         sp = self.TrajectorySetpoint()
         sp.position = [float(n), float(e), float(d)]
-        sp.yaw = 0.0             # 機頭朝北，讓航向修正有東西可修
+        # ⚠️ 這裡寫死 0.0 的時候，tag 也是朝北，於是交接時 yaw 誤差必然≈0 ——
+        #    「讓航向修正有東西可修」這個本意其實沒有達成，而且害 T3 一直
+        #    量不到航向收斂有多慢（實測：yaw 誤差 0.6° 時 ALIGNING 只要 1.4 秒，
+        #    但任務實跑斜向進場時要 41 秒）。
+        sp.yaw = float(self.handover_yaw)
         sp.timestamp = self._now_us()
         self.sp_pub.publish(sp)
 
@@ -379,6 +388,12 @@ def main():
     ap = argparse.ArgumentParser(
         description="完整降落飛行驗證（會真的讓飛機飛起來）")
     ap.add_argument("--gui", action="store_true", help="開 Gazebo 視窗")
+    ap.add_argument("--yaw", type=float, default=0.0,
+                    help="交接給精準降落時的機頭方位（度，0=朝北）。"
+                         "用來重現「Nav2 斜向進場、機頭歪著到達」—— "
+                         "DWB 的 critics 沒有 RotateToGoal，實際任務裡"
+                         "到達時的朝向是任意的。設在 spawn 沒有用，"
+                         "擺渡階段會把機頭轉回設定值")
     ap.add_argument("--offset", nargs=2, type=float, default=[1.0, 1.5],
                     metavar=("北", "東"),
                     help="交接前刻意偏開 tag 多少（公尺），預設 1.0 1.5")
@@ -526,6 +541,10 @@ def main():
         rclpy.init()
         node = rclpy.create_node("t3_landing_flight")
         ferry = Ferry(node, NAMESPACE, INSTANCE + 1)
+        ferry.handover_yaw = math.radians(args.yaw)
+        if abs(args.yaw) > 0.1:
+            rep.ok(f"擺渡會把機頭維持在 {args.yaw:+.0f}°，"
+                   f"交接時 yaw 誤差就是這個值")
 
         rep.section("C2 擺渡（扮演上層呼叫方）")
         if not ferry.wait_position():
@@ -559,13 +578,19 @@ def main():
 
         feedback_log = []
 
+        t_goal = time.monotonic()
+
         def on_fb(fb):
             f = fb.feedback
             names = {0: "SEARCHING", 1: "ALIGNING", 2: "DESCENDING", 3: "HANDOFF"}
+            # 第 6 欄是「從送出 goal 算起的秒數」。沒有時間戳的話，
+            # 看不出「某個狀態待了多久」—— 而那正是查「為什麼降得慢」
+            # 唯一有用的資訊。
             row = (names.get(f.state, "?"), f.altitude, f.xy_error,
-                   math.degrees(f.yaw_error), f.tag_visible)
+                   math.degrees(f.yaw_error), f.tag_visible,
+                   time.monotonic() - t_goal)
             if not feedback_log or feedback_log[-1][0] != row[0]:
-                print(f"     [{row[0]:<10}] 高度 {row[1]:5.2f} m  "
+                print(f"     [{row[5]:6.1f}s] {row[0]:<10} 高度 {row[1]:5.2f} m  "
                       f"水平誤差 {row[2]:5.2f} m  yaw {row[3]:+6.1f}°  "
                       f"看得到 tag={row[4]}")
             feedback_log.append(row)
@@ -603,6 +628,27 @@ def main():
             if not states or states[-1] != r[0]:
                 states.append(r[0])
         print(f"     走過的狀態   : {' -> '.join(states)}")
+
+        # 每個狀態待了多久 + 航向收斂速率。
+        # 為什麼要算「度/秒」：publishVelocity() 是把目標設成
+        # 「目前航向 + 一小步」，那一小步上限是 max_yawspeed * 0.05
+        # （= 1.43°）。這個寫法的實際轉速會遠低於 max_yawspeed 的設定值，
+        # 而唯一看得出來的方法就是量。
+        print("     各狀態耗時   :")
+        for name in ("SEARCHING", "ALIGNING", "DESCENDING", "HANDOFF"):
+            rows = [r for r in feedback_log if r[0] == name]
+            if not rows:
+                continue
+            dur = rows[-1][5] - rows[0][5]
+            extra = ""
+            if name == "ALIGNING" and dur > 0.5:
+                dyaw = abs(rows[0][3]) - abs(rows[-1][3])
+                dxy = rows[0][2] - rows[-1][2]
+                extra = (f"  航向 {rows[0][3]:+.1f}° -> {rows[-1][3]:+.1f}°"
+                         f"（{dyaw / dur:+.2f} °/s）"
+                         f"  水平 {rows[0][2]:.2f} -> {rows[-1][2]:.2f} m"
+                         f"（{dxy / dur:+.3f} m/s）")
+            print(f"       {name:<10} {dur:6.1f} s{extra}")
 
         if not result.success:
             rep.fail(f"降落回報失敗：{codes.get(result.result_code, '?')}")
